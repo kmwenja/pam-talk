@@ -1,0 +1,101 @@
+PAM
+Messing with Logins
+
+Kennedy Mwenja
+Software Engineer, Savannah Informatics Ltd.
+@caninemwenja
+
+* TOC
+
+- What is it
+- How it works
+- Configuration
+- Writing a module in Go
+- Why am I playing with it?
+
+* What Is It
+
+- Pluggable Authentication Modules
+- Sun Microsystems, 1995
+- General Authentications API
+- Think of it as an authentication broker
+- Applications that need authentication but don't want to (re)implement them
+- Authentication methods that can apply to any app
+- Example usage: Unix Login, SSH, LDAP, TOTP
+- Note that the application opts in (i.e. the app can ignore pam or its recommendations)
+
+* How it works
+
+.image pam_overview.png 500 _
+
+* How it works (cont.d)
+
+- authentication
+- account management
+- session management
+- password management
+
+* Configuration
+
+- /etc/pam.conf or /etc/pam.d or man pam.conf
+- config files looks like: *service* *type* *control* *module-path* *module-arguments*
+- *service*: _auth_, _account_, _session_, _password_
+- *control*: _required_, _requisite_, _sufficient_, _optional_, _include_, _substack_
+- *module-path*: absolute or relative to /lib/security or /lib64/security
+- *module-arguments*: _name=value_, space separated e.g. turn_on=true sock_file=/tmp/sock.1
+- /etc/pam.d/app_name dictates config for app_name
+
+* Configuration (example)
+
+.code example_config
+
+* Writing a PAM module
+
+- To interface with PAM your module must be a shared library i.e. my_module.so that exposes certain functions
+- You can support parts of the PAM API with respect to the services mentioned before
+
+- *auth*:
+
+  pam_sm_authenticate(pam_handle_t* h, int flags, int argc, char** argv)
+
+- *account*:
+
+  pam_sm_acct_mgmt(pam_handle_t* h, int flags, int argc, char **argv)
+  pam_sm_setcred(pam_handle_t* h, int flags, int argc, char** argv)
+
+* Writing a PAM module
+
+- *session*:
+
+  pam_sm_open_session(pam_handle_t* h, int flags, int argc, char **argv)
+  pam_sm_close_session(pam_handle_t* h, int flags, int argc, char **argv)
+
+- *password*:
+
+  pam_sm_chauthtok(pam_handle_t* h, int flags, int argc, char** argv)
+
+* Writing a module in Go (C code)
+
+- We'll do this with CGO to make a C-lib interface
+- Just *auth* service for now
+
+.code module/api.c /START OMIT/,/END OMIT/
+
+* Writing a module in Go (Go code)
+
+.code module/api.go /START OMIT/,/END OMIT/
+
+* Demo
+
+* Why am I playing with it?
+
+- SSH Bastion experiment
+- Caveat: SSH doesn't use PAM for pubkey authentication (there's a workaround)
+- PAM can handle account creation and expiry, group/perm setting, temporary home dirs
+
+* References
+
+- man pam (conf, functions, etc)
+- https://fedetask.com/write-linux-pam-module/
+- https://www.linux.com/news/understanding-pam/
+- https://github.com/AmandaCameron/golang-pam-auth
